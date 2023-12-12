@@ -76,6 +76,14 @@ def upload_page():
 
 def search_page():
     st.header("Search Documents")
+    st.text(
+        """
+        The documents are prioritized following these criteria (in order):
+            - Highest match count
+            - Most Recent
+            - author, keywords, title
+        """
+    )
 
     # Search input
     query = st.text_input("Enter search query")
@@ -89,7 +97,7 @@ def search_page():
             # Placeholder for search results
             for doc_id in doc_ids:
                 path = st.session_state.inverted_index.get_document_path(doc_id)
-                st.write(f"{doc_id} - {path}")
+                st.write(f"{doc_id} - {path.replace('%20', ' ').replace('_', ' - ')}")
         else:
             st.error("Please enter a search query.")
 
@@ -104,7 +112,7 @@ def main():
 
     st.sidebar.title("Navigation")
     app_mode = st.sidebar.selectbox(
-        "Choose the app mode", ["Upload Document", "Search Documents"]
+        "Choose the app mode", ["Search Documents", "Upload Document"]
     )
 
     if app_mode == "Upload Document":

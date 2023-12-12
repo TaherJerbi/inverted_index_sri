@@ -83,6 +83,8 @@ class InvertedIndex:
         sorted_results = sorted(
             match_count.keys(),
             key=lambda doc_id: (
+                # More matches are more relevant
+                match_count[doc_id],
                 # Most recent first
                 -self.metadata[doc_id]["date_time"].timestamp(),
                 # Prioritize if author or keywords match the query
@@ -91,15 +93,13 @@ class InvertedIndex:
                     for word in filtered_query_words
                 ),
                 any(
-                    word in self.metadata[doc_id]["title"]
-                    for word in filtered_query_words
-                ),
-                any(
                     word in self.metadata[doc_id]["keywords"]
                     for word in filtered_query_words
                 ),
-                # More matches are more relevant
-                match_count[doc_id],
+                any(
+                    word in self.metadata[doc_id]["title"]
+                    for word in filtered_query_words
+                ),
             ),
             reverse=True,
         )
@@ -142,57 +142,3 @@ def initiate_index(inverted_index: InvertedIndex, documents_folder="documents"):
                 date_time,
                 path=documents_folder + "/" + filename,
             )
-
-
-# # Example usage
-# inverted_index = InvertedIndex()
-# # Adding a few more documents with diverse authors, keywords, and content for testing
-# inverted_index.add_document(
-#     "Financial Analysis",
-#     "Analysis of financial markets in 2023.",
-#     "Emma Clark",
-#     "finance, markets, analysis",
-#     "2023-04-01 09:30:00",
-# )
-# inverted_index.add_document(
-#     "AI and ML",
-#     "Advancements in AI and machine learning.",
-#     "Mohamed Ali",
-#     "AI, machine learning, technology",
-#     "2023-05-15 15:45:00",
-# )
-# inverted_index.add_document(
-#     "Ancient History",
-#     "The history of ancient civilizations.",
-#     "Liu Wei",
-#     "history, ancient civilizations, archaeology",
-#     "2023-03-20 11:00:00",
-# )
-# inverted_index.add_document(
-#     "Web trends",
-#     "Modern web development trends.",
-#     "Sarah Johnson",
-#     "web development, technology, trends",
-#     "2023-06-01 08:15:00",
-# )
-# inverted_index.add_document(
-#     "The Future of Quantum Computing",
-#     "Exploring quantum computing.",
-#     "Ahmed Khan",
-#     "quantum computing, technology",
-#     "2023-07-05 10:00:00",
-# )
-
-# # Test queries with different scenarios
-# test_queries = [
-#     "machine learning",  # Query related to a specific topic
-#     "Emma Clark",  # Query for an author's name
-#     "finance markets",  # Query containing multiple keywords
-#     "ancient civilizations",  # Query for a specific subject
-#     "technology",  # A broad topic query
-#     "Sarah Johnson trends",  # Query combining author's name and topic
-# ]
-
-# # Perform searches for each test query
-# test_results = {query: inverted_index.search(query) for query in test_queries}
-# test_results
