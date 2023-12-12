@@ -1,6 +1,8 @@
 from collections import Counter, defaultdict
 from datetime import datetime
+import os
 import re
+import pickle
 
 
 class InvertedIndex:
@@ -27,7 +29,15 @@ class InvertedIndex:
             ]
         )
 
-    def add_document(self, document, author, keywords, date_time):
+    def add_document(
+        self,
+        document: str,
+        title: str,
+        author: str,
+        keywords: str,
+        date_time: datetime,
+        path="",
+    ):
         # Process the document
         words = re.findall(r"\w+", document.lower())
         filtered_words = [word for word in words if word not in self.stop_words]
@@ -35,9 +45,11 @@ class InvertedIndex:
         # Add the document and its metadata
         self.documents[self.doc_id] = document
         self.metadata[self.doc_id] = {
+            "title": title,
             "author": author.lower(),
             "keywords": keywords.lower(),
-            "date_time": datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S"),
+            "date_time": date_time,
+            "path": path,
         }
 
         # Update the index for document content
@@ -48,6 +60,8 @@ class InvertedIndex:
         for word in re.findall(r"\w+", author.lower()):
             self.index[word].add(self.doc_id)
         for word in re.findall(r"\w+", keywords.lower()):
+            self.index[word].add(self.doc_id)
+        for word in re.findall(r"\w+", title.lower()):
             self.index[word].add(self.doc_id)
 
         self.doc_id += 1
@@ -77,6 +91,10 @@ class InvertedIndex:
                     for word in filtered_query_words
                 ),
                 any(
+                    word in self.metadata[doc_id]["title"]
+                    for word in filtered_query_words
+                ),
+                any(
                     word in self.metadata[doc_id]["keywords"]
                     for word in filtered_query_words
                 ),
@@ -88,51 +106,93 @@ class InvertedIndex:
 
         return sorted_results
 
+    def get_document_path(self, doc_id):
+        return self.metadata[doc_id]["path"]
 
-# Example usage
-inverted_index = InvertedIndex()
-# Adding a few more documents with diverse authors, keywords, and content for testing
-inverted_index.add_document(
-    "Analysis of financial markets in 2023.",
-    "Emma Clark",
-    "finance, markets, analysis",
-    "2023-04-01 09:30:00",
-)
-inverted_index.add_document(
-    "Advancements in AI and machine learning.",
-    "Mohamed Ali",
-    "AI, machine learning, technology",
-    "2023-05-15 15:45:00",
-)
-inverted_index.add_document(
-    "The history of ancient civilizations.",
-    "Liu Wei",
-    "history, ancient civilizations, archaeology",
-    "2023-03-20 11:00:00",
-)
-inverted_index.add_document(
-    "Modern web development trends.",
-    "Sarah Johnson",
-    "web development, technology, trends",
-    "2023-06-01 08:15:00",
-)
-inverted_index.add_document(
-    "Exploring quantum computing.",
-    "Ahmed Khan",
-    "quantum computing, technology",
-    "2023-07-05 10:00:00",
-)
+    def save_to_file(self, file_path):
+        # Serialize the index and associated data to a file
+        with open(file_path, "wb") as file:
+            pickle.dump((self.index, self.documents, self.metadata, self.doc_id), file)
 
-# Test queries with different scenarios
-test_queries = [
-    "machine learning",  # Query related to a specific topic
-    "Emma Clark",  # Query for an author's name
-    "finance markets",  # Query containing multiple keywords
-    "ancient civilizations",  # Query for a specific subject
-    "technology",  # A broad topic query
-    "Sarah Johnson trends",  # Query combining author's name and topic
-]
+    def load_from_file(self, file_path):
+        # Deserialize the index and associated data from a file
+        with open(file_path, "rb") as file:
+            self.index, self.documents, self.metadata, self.doc_id = pickle.load(file)
 
-# Perform searches for each test query
-test_results = {query: inverted_index.search(query) for query in test_queries}
-test_results
+
+def initiate_index(inverted_index: InvertedIndex, documents_folder="documents"):
+    for filename in os.listdir(documents_folder):
+        # Ensure the file is a regular file (and not a directory, etc.)
+        if os.path.isfile(os.path.join(documents_folder, filename)):
+            # Extract title, author, and timestamp from the filename
+            title, author, timestamp = filename.rsplit("_", 2)
+            title = title.replace("%20", " ")
+            author = author.replace("%20", " ")
+            date_time = datetime.fromtimestamp(float(timestamp))
+            # Read the file content
+            with open(os.path.join(documents_folder, filename), "r") as file:
+                document_content = file.read()
+
+            # Add the document to the index
+            inverted_index.add_document(
+                document_content,
+                title,
+                author,
+                "",
+                date_time,
+                path=documents_folder + "/" + filename,
+            )
+
+
+# # Example usage
+# inverted_index = InvertedIndex()
+# # Adding a few more documents with diverse authors, keywords, and content for testing
+# inverted_index.add_document(
+#     "Financial Analysis",
+#     "Analysis of financial markets in 2023.",
+#     "Emma Clark",
+#     "finance, markets, analysis",
+#     "2023-04-01 09:30:00",
+# )
+# inverted_index.add_document(
+#     "AI and ML",
+#     "Advancements in AI and machine learning.",
+#     "Mohamed Ali",
+#     "AI, machine learning, technology",
+#     "2023-05-15 15:45:00",
+# )
+# inverted_index.add_document(
+#     "Ancient History",
+#     "The history of ancient civilizations.",
+#     "Liu Wei",
+#     "history, ancient civilizations, archaeology",
+#     "2023-03-20 11:00:00",
+# )
+# inverted_index.add_document(
+#     "Web trends",
+#     "Modern web development trends.",
+#     "Sarah Johnson",
+#     "web development, technology, trends",
+#     "2023-06-01 08:15:00",
+# )
+# inverted_index.add_document(
+#     "The Future of Quantum Computing",
+#     "Exploring quantum computing.",
+#     "Ahmed Khan",
+#     "quantum computing, technology",
+#     "2023-07-05 10:00:00",
+# )
+
+# # Test queries with different scenarios
+# test_queries = [
+#     "machine learning",  # Query related to a specific topic
+#     "Emma Clark",  # Query for an author's name
+#     "finance markets",  # Query containing multiple keywords
+#     "ancient civilizations",  # Query for a specific subject
+#     "technology",  # A broad topic query
+#     "Sarah Johnson trends",  # Query combining author's name and topic
+# ]
+
+# # Perform searches for each test query
+# test_results = {query: inverted_index.search(query) for query in test_queries}
+# test_results
